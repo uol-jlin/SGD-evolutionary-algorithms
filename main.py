@@ -1,19 +1,21 @@
 import random
 import time
+import logging
+import coloredlogs
 from deap import base, creator, tools, algorithms
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.datasets import fashion_mnist
-import logging
 
 # Setup detailed logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+coloredlogs.install(level='DEBUG', logger=logger, fmt='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load dataset
-logging.info("Loading Fashion MNIST dataset.")
+logger.info("Loading Fashion MNIST dataset.")
 (x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
 x_train, x_test = x_train / 255.0, x_test / 255.0
 
@@ -27,15 +29,23 @@ def create_model(hyperparameters):
     Returns:
     - model (tf.keras.Model): The compiled neural network model.
     """
-    learning_rate, momentum, l2_reg, decay = hyperparameters
+    learning_rate, momentum, l2_reg, lr_decay = hyperparameters
     l2_reg = max(0, l2_reg)  # Ensure L2 Regularization is non-negative
-    logging.debug(f"Configuring model with hyperparameters: Learning Rate={learning_rate:.3f}, Momentum={momentum:.3f}, L2 Regularization={l2_reg:.3f}, Learning Rate Decay={decay:.3f}")
+    logger.debug(f"Configuring model with hyperparameters: "
+                 f"Learning Rate={learning_rate:.3f}, Momentum={momentum:.3f}, "
+                 f"L2 Regularization={l2_reg:.3f}, Learning Rate Decay={lr_decay:.3f}")
     model = Sequential([
-        tf.keras.layers.Flatten(input_shape=(28, 28)),
+        Flatten(input_shape=(28, 28)),
         Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l2_reg)),
         Dense(10)
     ])
-    optimizer = SGD(learning_rate=learning_rate, momentum=momentum, decay=decay)
+    learning_rate_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate=learning_rate,
+        decay_steps=100000,
+        decay_rate=lr_decay,
+        staircase=True
+    )
+    optimizer = SGD(learning_rate=learning_rate_schedule, momentum=momentum)
     model.compile(optimizer=optimizer, loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
     return model
@@ -50,14 +60,15 @@ def eval_model(hyperparameters):
     Returns:
     - tuple: A tuple containing one element, the negative of the validation accuracy.
     """
-    learning_rate, momentum, l2_reg, decay = hyperparameters
-    logging.info(f"Evaluating model with hyperparameters: Learning Rate={learning_rate:.3f}, Momentum={momentum:.3f}, L2 Regularization={l2_reg:.3f}, Learning Rate Decay={decay:.3f}")
+    logger.info(f"Evaluating model with hyperparameters: "
+                f"Learning Rate={hyperparameters[0]:.3f}, Momentum={hyperparameters[1]:.3f}, "
+                f"L2 Regularization={hyperparameters[2]:.3f}, Learning Rate Decay={hyperparameters[3]:.3f}")
     model = create_model(hyperparameters)
     start_time = time.time()
     history = model.fit(x_train, y_train, epochs=5, verbose=0, validation_split=0.1)
     elapsed_time = time.time() - start_time
     val_accuracy = history.history['val_accuracy'][-1]
-    logging.info(f"Training completed in {elapsed_time:.2f} seconds. Validation accuracy: {val_accuracy:.3f}")
+    logger.info(f"Training completed in {elapsed_time:.2f} seconds. Validation accuracy: {val_accuracy:.3f}")
     return (-val_accuracy,)
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -67,7 +78,7 @@ toolbox = base.Toolbox()
 toolbox.register("attr_float_lr", random.uniform, 1e-5, 1e-1)
 toolbox.register("attr_float_momentum", random.uniform, 0.0, 0.9)
 toolbox.register("attr_float_l2", random.uniform, 0.0001, 0.01)
-toolbox.register("attr_float_decay", random.uniform, 1e-6, 1e-3)
+toolbox.register("attr_float_decay", random.uniform, 0.8, 1.0)
 toolbox.register("individual", tools.initCycle, creator.Individual,
                  (toolbox.attr_float_lr, toolbox.attr_float_momentum, toolbox.attr_float_l2, toolbox.attr_float_decay), n=1)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -112,11 +123,11 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
     fitnesses = map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
-    logging.info("Evaluated initial population.")
+    logger.info("Evaluated initial population.")
 
     for gen in range(1, ngen + 1):
         gen_start_time = time.time()
-        logging.info(f"Generation {gen} start.")
+        logger.info(f"Generation {gen} start.")
 
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
@@ -127,20 +138,20 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
                 toolbox.mate(child1, child2)
                 del child1.fitness.values
                 del child2.fitness.values
-                logging.debug("Crossover applied.")
+                logger.debug("Crossover applied.")
 
         for mutant in offspring:
             if random.random() < mutpb:
                 toolbox.mutate(mutant)
                 del mutant.fitness.values
-                logging.debug("Mutation applied.")
+                logger.debug("Mutation applied.")
 
         # Evaluate individuals with invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
         fitnesses = map(toolbox.evaluate, invalid_ind)
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
-        logging.info(f"Evaluated {len(invalid_ind)} individuals.")
+        logger.info(f"Evaluated {len(invalid_ind)} individuals.")
 
         # Replace the old population with the offspring
         population[:] = offspring
@@ -150,16 +161,18 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
         maximum = max(fits)
         minimum = min(fits)
         mean = sum(fits) / len(fits)
-        logging.info(f"Generation {gen}: Max {maximum:.3f}, Min {minimum:.3f}, Avg {mean:.3f}. Time elapsed: {time.time() - gen_start_time:.2f} seconds.")
+        logger.info(f"Generation {gen}: Max {maximum:.3f}, Min {minimum:.3f}, Avg {mean:.3f}. "
+                    f"Time elapsed: {time.time() - gen_start_time:.2f} seconds.")
 
     return population
 
-logging.info("Initializing genetic algorithm for hyperparameter optimization.")
+logger.info("Initializing genetic algorithm for hyperparameter optimization.")
 population = toolbox.population(n=10)
 start_time = time.time()
 result = custom_eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, verbose=True)
 total_time = time.time() - start_time
-logging.info(f"Evolutionary process completed in {total_time:.2f} seconds.")
+logger.info(f"Evolutionary process completed in {total_time:.2f} seconds.")
 
 best_ind = tools.selBest(population, 1)[0]
-logging.info(f'Optimal Hyperparameters Found: Learning Rate = {best_ind[0]:.3f}, Momentum = {best_ind[1]:.3f}, L2 Regularization = {best_ind[2]:.3f}, Learning Rate Decay = {best_ind[3]:.3f}')
+logger.info(f'Optimal Hyperparameters Found: Learning Rate = {best_ind[0]:.3f}, Momentum = {best_ind[1]::.3f}, '
+            f'L2 Regularization = {best_ind[2]:.3f}, Learning Rate Decay = {best_ind[3]:.3f}')
