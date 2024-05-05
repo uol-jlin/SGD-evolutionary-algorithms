@@ -5,8 +5,8 @@ import coloredlogs
 from deap import base, creator, tools, algorithms
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras import Input, Sequential
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.datasets import fashion_mnist
 
@@ -31,11 +31,14 @@ def create_model(hyperparameters):
     """
     learning_rate, momentum, l2_reg, lr_decay = hyperparameters
     l2_reg = max(0, l2_reg)  # Ensure L2 Regularization is non-negative
-    logger.debug(f"Configuring model with hyperparameters: "
-                 f"Learning Rate={learning_rate:.3f}, Momentum={momentum:.3f}, "
-                 f"L2 Regularization={l2_reg:.3f}, Learning Rate Decay={lr_decay:.3f}")
+    logger.debug(f"\033[1mConfiguring model with hyperparameters:\033[0m\n"
+                 f" - Learning Rate: \033[34m{learning_rate:.3f}\033[0m\n"
+                 f" - Momentum: \033[34m{momentum:.3f}\033[0m\n"
+                 f" - L2 Regularization: \033[34m{l2_reg:.3f}\033[0m\n"
+                 f" - Learning Rate Decay: \033[34m{lr_decay:.3f}\033[0m")
+
     model = Sequential([
-        Flatten(input_shape=(28, 28)),
+        Input(shape=(28, 28)),
         Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l2_reg)),
         Dense(10)
     ])
@@ -60,15 +63,20 @@ def eval_model(hyperparameters):
     Returns:
     - tuple: A tuple containing one element, the negative of the validation accuracy.
     """
-    logger.info(f"Evaluating model with hyperparameters: "
-                f"Learning Rate={hyperparameters[0]:.3f}, Momentum={hyperparameters[1]:.3f}, "
-                f"L2 Regularization={hyperparameters[2]:.3f}, Learning Rate Decay={hyperparameters[3]:.3f}")
+    learning_rate, momentum, l2_reg, lr_decay = hyperparameters
+    logger.info(f"\033[1mEvaluating model with hyperparameters:\033[0m\n"
+                f" - Learning Rate: \033[34m{learning_rate:.3f}\033[0m\n"
+                f" - Momentum: \033[34m{momentum:.3f}\033[0m\n"
+                f" - L2 Regularization: \033[34m{l2_reg:.3f}\033[0m\n"
+                f" - Learning Rate Decay: \033[34m{lr_decay:.3f}\033[0m")
     model = create_model(hyperparameters)
     start_time = time.time()
     history = model.fit(x_train, y_train, epochs=5, verbose=0, validation_split=0.1)
     elapsed_time = time.time() - start_time
     val_accuracy = history.history['val_accuracy'][-1]
-    logger.info(f"Training completed in {elapsed_time:.2f} seconds. Validation accuracy: {val_accuracy:.3f}")
+    logger.info(f"\033[1mTraining completed.\033[0m\n"
+                f" - Time taken: \033[32m{elapsed_time:.2f} seconds\033[0m\n"
+                f" - Validation accuracy: \033[32m{val_accuracy:.3f}\033[0m")
     return (-val_accuracy,)
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -123,11 +131,11 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
     fitnesses = map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
-    logger.info("Evaluated initial population.")
+    logger.info("\033[1mEvaluated initial population.\033[0m")
 
     for gen in range(1, ngen + 1):
         gen_start_time = time.time()
-        logger.info(f"Generation {gen} start.")
+        logger.info(f"\033[1mGeneration {gen} start.\033[0m")
 
         offspring = toolbox.select(population, len(population))
         offspring = list(map(toolbox.clone, offspring))
@@ -161,18 +169,24 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
         maximum = max(fits)
         minimum = min(fits)
         mean = sum(fits) / len(fits)
-        logger.info(f"Generation {gen}: Max {maximum:.3f}, Min {minimum:.3f}, Avg {mean:.3f}. "
-                    f"Time elapsed: {time.time() - gen_start_time:.2f} seconds.")
+        logger.info(f"\033[1mGeneration {gen}:\033[0m\n"
+                    f" - Max: \033[32m{maximum:.3f}\033[0m\n"
+                    f" - Min: \033[32m{minimum:.3f}\033[0m\n"
+                    f" - Avg: \033[32m{mean:.3f}\033[0m\n"
+                    f" - Time elapsed: \033[32m{time.time() - gen_start_time:.2f} seconds\033[0m")
 
     return population
 
-logger.info("Initializing genetic algorithm for hyperparameter optimization.")
+logger.info("\033[1mInitializing genetic algorithm for hyperparameter optimization.\033[0m")
 population = toolbox.population(n=10)
 start_time = time.time()
 result = custom_eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, verbose=True)
 total_time = time.time() - start_time
-logger.info(f"Evolutionary process completed in {total_time:.2f} seconds.")
+logger.info(f"\033[1mEvolutionary process completed in\033[0m \033[32m{total_time:.2f} seconds\033[0m.")
 
 best_ind = tools.selBest(population, 1)[0]
-logger.info(f'Optimal Hyperparameters Found: Learning Rate = {best_ind[0]:.3f}, Momentum = {best_ind[1]::.3f}, '
-            f'L2 Regularization = {best_ind[2]:.3f}, Learning Rate Decay = {best_ind[3]:.3f}')
+logger.info(f"\033[1mOptimal Hyperparameters Found:\033[0m\n"
+            f" - Learning Rate: \033[34m{best_ind[0]:.3f}\033[0m\n"
+            f" - Momentum: \033[34m{best_ind[1]:.3f}\033[0m\n"
+            f" - L2 Regularization: \033[34m{best_ind[2]::.3f}\033[0m\n"
+            f" - Learning Rate Decay: \033[34m{best_ind[3]::.3f}\033[0m")
