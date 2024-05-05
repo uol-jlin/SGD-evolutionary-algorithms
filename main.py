@@ -6,7 +6,7 @@ from deap import base, creator, tools, algorithms
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Input, Sequential
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.datasets import fashion_mnist
 
@@ -39,6 +39,7 @@ def create_model(hyperparameters):
 
     model = Sequential([
         Input(shape=(28, 28)),
+        Flatten(),
         Dense(128, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(l2_reg)),
         Dense(10)
     ])
