@@ -62,7 +62,7 @@ def eval_model(hyperparameters):
     - hyperparameters (tuple): The hyperparameters for the SGD optimizer.
 
     Returns:
-    - tuple: A tuple containing one element, the negative of the validation accuracy.
+    - tuple: A tuple containing one element, the composite fitness score.
     """
     learning_rate, momentum, l2_reg, lr_decay = hyperparameters
     logger.info(f"\033[1mEvaluating model with hyperparameters:\033[0m\n"
@@ -75,10 +75,15 @@ def eval_model(hyperparameters):
     history = model.fit(x_train, y_train, epochs=5, verbose=0, validation_split=0.1)
     elapsed_time = time.time() - start_time
     val_accuracy = history.history['val_accuracy'][-1]
+    val_loss = history.history['val_loss'][-1]
     logger.info(f"\033[1mTraining completed.\033[0m\n"
                 f" - Time taken: \033[32m{elapsed_time:.2f} seconds\033[0m\n"
-                f" - Validation accuracy: \033[32m{val_accuracy:.3f}\033[0m")
-    return (-val_accuracy,)
+                f" - Validation accuracy: \033[32m{val_accuracy:.3f}\033[0m\n"
+                f" - Validation loss: \033[32m{val_loss:.3f}\033[0m")
+    
+    # Composite fitness function
+    fitness = 0.5 * val_accuracy - 0.3 * elapsed_time - 0.2 * val_loss
+    return (fitness,)
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
