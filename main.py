@@ -56,33 +56,55 @@ def create_model(hyperparameters):
 
 def eval_model(hyperparameters):
     """
-    Train the model and evaluate its performance on the validation dataset.
+    Train the model and evaluate its performance on the validation dataset, with normalization of components to a [0, 1] scale.
 
     Parameters:
     - hyperparameters (tuple): The hyperparameters for the SGD optimizer.
 
     Returns:
-    - tuple: A tuple containing one element, the composite fitness score.
+    - tuple: A tuple containing one element, the normalized composite fitness score.
     """
     learning_rate, momentum, l2_reg, lr_decay = hyperparameters
-    logger.info(f"\033[1mEvaluating model with hyperparameters:\033[0m\n"
-                f" - Learning Rate: \033[34m{learning_rate:.3f}\033[0m\n"
-                f" - Momentum: \033[34m{momentum:.3f}\033[0m\n"
-                f" - L2 Regularization: \033[34m{l2_reg:.3f}\033[0m\n"
-                f" - Learning Rate Decay: \033[34m{lr_decay:.3f}\033[0m")
+    logger.info(f"Evaluating model with hyperparameters:\n"
+                f" - Learning Rate: {learning_rate:.3f}\n"
+                f" - Momentum: {momentum:.3f}\n"
+                f" - L2 Regularization: {l2_reg:.3f}\n"
+                f" - Learning Rate Decay: {lr_decay:.3f}")
     model = create_model(hyperparameters)
     start_time = time.time()
     history = model.fit(x_train, y_train, epochs=5, verbose=0, validation_split=0.1)
     elapsed_time = time.time() - start_time
     val_accuracy = history.history['val_accuracy'][-1]
     val_loss = history.history['val_loss'][-1]
-    logger.info(f"\033[1mTraining completed.\033[0m\n"
-                f" - Time taken: \033[32m{elapsed_time:.2f} seconds\033[0m\n"
-                f" - Validation accuracy: \033[32m{val_accuracy:.3f}\033[0m\n"
-                f" - Validation loss: \033[32m{val_loss:.3f}\033[0m")
-    
-    # Composite fitness function
-    fitness = 0.5 * val_accuracy - 0.3 * elapsed_time - 0.2 * val_loss
+
+    # Normalizing each component
+    # Assume maximum accuracy is 1, minimum is 0
+    # Assume maximum time for tasks (set based on observed times)
+    max_time = 60  # Example: maximum observed time 60 seconds
+    min_time = 0
+    # Assume maximum loss (set based on observed losses)
+    max_loss = 1  # Example: maximum observed validation loss
+    min_loss = 0
+
+    normalized_accuracy = (val_accuracy - 0) / (1 - 0)
+    normalized_time = (elapsed_time - min_time) / (max_time - min_time)
+    normalized_loss = (val_loss - min_loss) / (max_loss - min_loss)
+
+    # Composite fitness function with normalization
+    accuracy_weight = 0.5
+    time_weight = -0.3
+    loss_weight = -0.2
+    fitness = accuracy_weight * normalized_accuracy + time_weight * (1 - normalized_time) + loss_weight * (1 - normalized_loss)
+
+    logger.info(f"Training completed.\n"
+                f" - Time taken: {elapsed_time:.2f} seconds\n"
+                f" - Validation accuracy: {val_accuracy:.3f}\n"
+                f" - Validation loss: {val_loss:.3f}\n"
+                f"Composite Fitness Score: {fitness:.3f}\n"
+                f" - Weighted Normalized Accuracy: {accuracy_weight * normalized_accuracy:.3f}\n"
+                f" - Weighted Normalized Time: {time_weight * (1 - normalized_time):.3f}\n"
+                f" - Weighted Normalized Loss: {loss_weight * (1 - normalized_loss):.3f}")
+
     return (fitness,)
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
