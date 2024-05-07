@@ -168,7 +168,7 @@ def custom_mutate(individual):
     """
     Apply Gaussian mutation to the individual but ensure non-negative L2 Regularization.
     """
-    toolbox.mutGaussian(individual, mu=0, sigma=1, indpb=0.1)
+    individual, = toolbox.mutGaussian(individual, mu=0, sigma=1, indpb=0.1)
     individual[2] = max(0, individual[2])  # Ensure L2 Regularization is non-negative
     return (individual,)
 
