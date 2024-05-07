@@ -9,6 +9,8 @@ from tensorflow.keras import Input, Sequential
 from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.datasets import fashion_mnist
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Setup detailed logging
 logger = logging.getLogger(__name__)
@@ -54,6 +56,12 @@ def create_model(hyperparameters):
                   metrics=['accuracy'])
     return model
 
+# List to store stats across generations
+accuracy_list = []
+time_list = []
+loss_list = []
+fitness_list = []
+
 def eval_model(hyperparameters):
     """
     Train the model and evaluate its performance on the validation dataset, with normalization of components to a [0, 1] scale.
@@ -90,11 +98,54 @@ def eval_model(hyperparameters):
     # Composite fitness function
     fitness = 0.5 * normalized_accuracy + 0.3 * normalized_time + 0.2 * normalized_loss
     logger.info(f"\033[1mComposite Fitness Score:\033[0m \033[32m{fitness:.3f}\033[0m\n"
-                f" - \033[1mWeighted Normalized Accuracy:\033[0m \033[32m{0.5 * normalized_accuracy:.3f}\033[0m\n"
-                f" - \033[1mWeighted Normalized Time:\033[0m \033[32m{0.3 * normalized_time:.3f}\033[0m\n"
-                f" - \033[1mWeighted Normalized Loss:\033[0m \033[32m{0.2 * normalized_loss:.3f}\033[0m")
+                f" - \033[Weighted Normalized Accuracy:\033[0m \033[32m{0.5 * normalized_accuracy:.3f}\033[0m\n"
+                f" - \033[Weighted Normalized Time:\033[0m \033[32m{0.3 * normalized_time:.3f}\033[0m\n"
+                f" - \033[Weighted Normalized Loss:\033[0m \033[32m{0.2 * normalized_loss:.3f}\033[0m")
+
+    # Store the metrics
+    accuracy_list.append(normalized_accuracy)
+    time_list.append(elapsed_time)
+    loss_list.append(val_loss)
+    fitness_list.append(fitness)
 
     return (fitness,)
+
+def plot_metrics():
+    """
+    Plot the metrics collected across generations.
+    """
+    generations = range(1, len(fitness_list) + 1)
+
+    plt.figure(figsize=(15, 5))
+
+    plt.subplot(1, 3, 1)
+    sns.lineplot(x=generations, y=accuracy_list, marker='o')
+    plt.title('Validation Accuracy')
+    plt.xlabel('Generation')
+    plt.ylabel('Accuracy')
+
+    plt.subplot(1, 3, 2)
+    sns.lineplot(x=generations, y=time_list, marker='o')
+    plt.title('Time Taken')
+    plt.xlabel('Generation')
+    plt.ylabel('Time (s)')
+
+    plt.subplot(1, 3, 3)
+    sns.lineplot(x=generations, y=loss_list, marker='o')
+    plt.title('Validation Loss')
+    plt.xlabel('Generation')
+    plt.ylabel('Loss')
+
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(6, 5))
+    sns.lineplot(x=generations, y=fitness_list, marker='o')
+    plt.title('Composite Fitness Score')
+    plt.xlabel('Generation')
+    plt.ylabel('Fitness Score')
+    plt.tight_layout()
+    plt.show()
 
 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
@@ -205,5 +256,7 @@ best_ind = tools.selBest(population, 1)[0]
 logger.info(f"\033[1mOptimal Hyperparameters Found:\033[0m\n"
             f" - Learning Rate: \033[34m{best_ind[0]:.3f}\033[0m\n"
             f" - Momentum: \033[34m{best_ind[1]:.3f}\033[0m\n"
-            f" - L2 Regularization: \033[34m{best_ind[2]::.3f}\033[0m\n"
-            f" - Learning Rate Decay: \033[34m{best_ind[3]::.3f}\033[0m")
+            f" - L2 Regularization: \033[34m{best_ind[2]:.3f}\033[0m\n"
+            f" - Learning Rate Decay: \033[34m{best_ind[3]:.3f}\033[0m")
+
+plot_metrics()
