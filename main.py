@@ -161,14 +161,14 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", eval_model)
 toolbox.register("mate", tools.cxBlend, alpha=0.1)
-toolbox.register("mutate", tools.mutGaussian, mu=0, sigma=1, indpb=0.1)
+toolbox.register("mutGaussian", tools.mutGaussian, mu=0, sigma=1, indpb=0.1)
 
 # Custom mutation function to ensure non-negative L2 Regularization
 def custom_mutate(individual):
     """
     Apply Gaussian mutation to the individual but ensure non-negative L2 Regularization.
     """
-    individual, = toolbox.mutGaussian(individual, mu=0, sigma=1, indpb=0.1)
+    individual, = toolbox.mutGaussian(individual)  # Use the registered function name directly
     individual[2] = max(0, individual[2])  # Ensure L2 Regularization is non-negative
     return (individual,)
 
@@ -248,7 +248,7 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
 logger.info("\033[1mInitializing genetic algorithm for hyperparameter optimization.\033[0m")
 population = toolbox.population(n=10)
 start_time = time.time()
-result = custom_eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=10, verbose=True)
+result = custom_eaSimple(population, toolbox, cxpb=0.5, mutpb=0.2, ngen=3, verbose=True)
 total_time = time.time() - start_time
 logger.info(f"\033[1mEvolutionary process completed in\033[0m \033[32m{total_time:.2f} seconds\033[0m.")
 
