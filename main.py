@@ -168,7 +168,7 @@ def custom_mutate(individual):
     """
     Apply Gaussian mutation to the individual but ensure non-negative L2 Regularization.
     """
-    individual, = toolbox.mutGaussian(individual)  # Use the registered function name directly
+    individual, = toolbox.mutGaussian(individual)
     individual[2] = max(0, individual[2])  # Ensure L2 Regularization is non-negative
     return (individual,)
 
@@ -214,13 +214,16 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
                 toolbox.mate(child1, child2)
                 del child1.fitness.values
                 del child2.fitness.values
-                logger.debug("Crossover applied.")
+                logger.debug(f"\033[1mCrossover applied.\033[0m\n"
+                             f" - Parent 1: {child1}\n"
+                             f" - Parent 2: {child2}")
 
         for mutant in offspring:
             if random.random() < mutpb:
                 toolbox.mutate(mutant)
                 del mutant.fitness.values
-                logger.debug("Mutation applied.")
+                logger.debug(f"\033[1mMutation applied.\033[0m\n"
+                             f" - Mutant: {mutant}")
 
         # Evaluate individuals with invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
