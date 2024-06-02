@@ -33,6 +33,7 @@ def create_model(hyperparameters):
     """
     learning_rate, momentum, l2_reg, lr_decay = hyperparameters
     l2_reg = max(0, l2_reg)  # Ensure L2 Regularization is non-negative
+    momentum = min(max(0, momentum), 1)  # Ensure Momentum is in [0, 1]
     logger.debug(f"\033[1mConfiguring model with hyperparameters:\033[0m\n"
                  f" - Learning Rate: \033[34m{learning_rate:.3f}\033[0m\n"
                  f" - Momentum: \033[34m{momentum:.3f}\033[0m\n"
@@ -163,13 +164,18 @@ toolbox.register("evaluate", eval_model)
 toolbox.register("mate", tools.cxBlend, alpha=0.1)
 toolbox.register("mutGaussian", tools.mutGaussian, mu=0, sigma=1, indpb=0.1)
 
-# Custom mutation function to ensure non-negative L2 Regularization
+# Custom mutation function to ensure non-negative L2 Regularization and valid Momentum
 def custom_mutate(individual):
     """
-    Apply Gaussian mutation to the individual but ensure non-negative L2 Regularization.
+    Apply Gaussian mutation to the individual but ensure non-negative L2 Regularization and valid Momentum.
     """
     individual, = toolbox.mutGaussian(individual)
+    mutation_index = random.randint(0, len(individual) - 1)
+    logger.debug(f"\033[1;35mMutation applied at index {mutation_index}.\033[0m\n"
+                 f" - Original: {individual}")
     individual[2] = max(0, individual[2])  # Ensure L2 Regularization is non-negative
+    individual[1] = min(max(0, individual[1]), 1)  # Ensure Momentum is in [0, 1]
+    logger.debug(f"\033[1;35mResult: {individual}\033[0m")
     return (individual,)
 
 toolbox.register("mutate", custom_mutate)
@@ -212,17 +218,18 @@ def custom_eaSimple(population, toolbox, cxpb, mutpb, ngen, stats=None, halloffa
         for child1, child2 in zip(offspring[::2], offspring[1::2]):
             if random.random() < cxpb:
                 toolbox.mate(child1, child2)
+                crossover_point = random.randint(1, len(child1) - 1)
                 del child1.fitness.values
                 del child2.fitness.values
-                logger.debug(f"\033[1mCrossover applied.\033[0m\n"
+                logger.debug(f"\033[1;34mCrossover applied at index {crossover_point}.\033[0m\n"
                              f" - Parent 1: {child1}\n"
-                             f" - Parent 2: {child2}")
+                             f" - Parent 2: {child2}\n"
+                             f" - Resulting Children: {child1}, {child2}")
 
         for mutant in offspring:
             if random.random() < mutpb:
                 toolbox.mutate(mutant)
-                del mutant.fitness.values
-                logger.debug(f"\033[1mMutation applied.\033[0m\n"
+                logger.debug(f"\033[1;35mMutation applied to individual.\033[0m\n"
                              f" - Mutant: {mutant}")
 
         # Evaluate individuals with invalid fitness
