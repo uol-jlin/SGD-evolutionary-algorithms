@@ -98,9 +98,9 @@ def eval_model(hyperparameters):
     # Composite fitness function
     fitness = 0.5 * normalized_accuracy + 0.3 * normalized_time + 0.2 * normalized_loss
     logger.info(f"\033[1mComposite Fitness Score:\033[0m \033[32m{fitness:.3f}\033[0m\n"
-                f" - \033[Weighted Normalized Accuracy:\033[0m \033[32m{0.5 * normalized_accuracy:.3f}\033[0m\n"
-                f" - \033[Weighted Normalized Time:\033[0m \033[32m{0.3 * normalized_time:.3f}\033[0m\n"
-                f" - \033[Weighted Normalized Loss:\033[0m \033[32m{0.2 * normalized_loss:.3f}\033[0m")
+                f" - \033[1mWeighted Normalized Accuracy:\033[0m \033[32m{0.5 * normalized_accuracy:.3f}\033[0m\n"
+                f" - \033[1mWeighted Normalized Time:\033[0m \033[32m{0.3 * normalized_time:.3f}\033[0m\n"
+                f" - \033[1mWeighted Normalized Loss:\033[0m \033[32m{0.2 * normalized_loss:.3f}\033[0m")
 
     # Store the metrics
     accuracy_list.append(normalized_accuracy)
